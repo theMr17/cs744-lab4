@@ -53,7 +53,7 @@ int init_server(char mode, int port)
     return server_socket_fd;
 }
 
-int accept_request(int server_fd, char* req, int* client_fd)
+int accept_request(int server_fd, char *req, int *client_fd)
 {
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
@@ -77,7 +77,8 @@ int accept_request(int server_fd, char* req, int* client_fd)
     return 1;
 }
 
-void parse_request(char* raw_req, ParsedRequest* parsed_req) {
+void parse_request(char *raw_req, ParsedRequest *parsed_req)
+{
     parse_http_request(raw_req, parsed_req);
 }
 
@@ -98,7 +99,8 @@ char *dispatch_request(ParsedRequest *parsed_req, const char **status)
     return create_http_response(*status, "text/plain", "Not Found\n", strlen("Not Found\n"), NULL);
 }
 
-void send_response(int client_fd, const char *res) {
+void send_response(int client_fd, const char *res)
+{
     size_t response_len = strlen(res);
     ssize_t send_status = send(client_fd, res, response_len, 0);
     if (send_status < 0)
@@ -124,8 +126,8 @@ int main(int argc, char *argv[])
 
     while (true)
     {
-        char* raw_req = (char*) malloc(BUF_SIZE * sizeof(char));
-        int* client_fd = malloc(sizeof(int));
+        char *raw_req = (char *)malloc(BUF_SIZE * sizeof(char));
+        int *client_fd = malloc(sizeof(int));
         if (!accept_request(server_fd, raw_req, client_fd))
         {
             free(client_fd);
@@ -133,11 +135,11 @@ int main(int argc, char *argv[])
             break;
         }
 
-        ParsedRequest* parsed_req = (ParsedRequest*) malloc(sizeof(ParsedRequest));
+        ParsedRequest *parsed_req = (ParsedRequest *)malloc(sizeof(ParsedRequest));
         parse_request(raw_req, parsed_req);
 
         const char *status;
-        char* http_response = dispatch_request(parsed_req, &status);
+        char *http_response = dispatch_request(parsed_req, &status);
 
         printf("[thread %ld] %s %s -> %s\n",
                (long)getpid(),
