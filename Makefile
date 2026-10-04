@@ -1,10 +1,10 @@
 # write details to make the cflask program
 
 cflask: cflask.o http-parser.o functions.o
-	gcc cflask.o http-parser.o functions.o -o cflask
+	gcc cflask.o http-parser.o functions.o -o cflask -pthread
 
 cflask.o: http-parser.o cflask.c
-	gcc -c cflask.c
+	gcc -c cflask.c -pthread
 
 http-parser.o: http-parser.c http-parser.h
 	gcc -c http-parser.c 	
