@@ -49,11 +49,11 @@ int init_server(char mode, int port)
         return -1;
     }
 
-    printf("Server is listening on port: %d\n", port);
+    printf("cflask [single-threaded] on http://0.0.0.0:%d\n", port);
     return server_socket_fd;
 }
 
-void accept_request(int server_fd, char* req, int* client_fd)
+int accept_request(int server_fd, char* req, int* client_fd)
 {
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
@@ -62,7 +62,7 @@ void accept_request(int server_fd, char* req, int* client_fd)
     if (*client_fd < 0)
     {
         perror("accept");
-        return;
+        return 0;
     }
 
     memset(req, 0, BUF_SIZE);
@@ -70,31 +70,18 @@ void accept_request(int server_fd, char* req, int* client_fd)
     if (data_size < 0)
     {
         perror("recv");
-        return;
+        close(*client_fd);
+        return 0;
     }
+
+    return 1;
 }
 
 void parse_request(char* raw_req, ParsedRequest* parsed_req) {
     parse_http_request(raw_req, parsed_req);
-
-    printf("--- Request Line ---\n");
-    printf("Method:  %s\n", (*parsed_req).request_line.method);
-    printf("URI:     %s\n", (*parsed_req).request_line.uri);
-    printf("Version: %s\n\n", (*parsed_req).request_line.version);
-
-    printf("--- Headers Parsed: %d ---\n", (*parsed_req).header_count);
-    for (int i = 0; i < (*parsed_req).header_count; i++)
-    {
-        printf("%s -> %s\n", (*parsed_req).headers[i].key, (*parsed_req).headers[i].value);
-    }
-
-    if ((*parsed_req).body)
-    {
-        printf("\n--- Body ---\n%s\n\n", (*parsed_req).body);
-    }
 }
 
-char *dispatch_request(ParsedRequest *parsed_req)
+char *dispatch_request(ParsedRequest *parsed_req, const char **status)
 {
     char *path = parsed_req->request_line.uri;
 
@@ -102,11 +89,13 @@ char *dispatch_request(ParsedRequest *parsed_req)
     {
         if (strcmp(path, routes[i].path) == 0)
         {
+            *status = "200 OK";
             return routes[i].handler();
         }
     }
 
-    return create_http_response("404 Not Found", "text/plain", "Not Found\n", strlen("Not Found\n"), NULL);
+    *status = "404 Not Found";
+    return create_http_response(*status, "text/plain", "Not Found\n", strlen("Not Found\n"), NULL);
 }
 
 void send_response(int client_fd, const char *res) {
@@ -128,17 +117,33 @@ int main(int argc, char *argv[])
     }
 
     int server_fd = init_server(*argv[1], atoi(argv[2]));
+    if (server_fd < 0)
+    {
+        return 1;
+    }
 
     while (true)
     {
         char* raw_req = (char*) malloc(BUF_SIZE * sizeof(char));
         int* client_fd = malloc(sizeof(int));
-        accept_request(server_fd, raw_req, client_fd);
+        if (!accept_request(server_fd, raw_req, client_fd))
+        {
+            free(client_fd);
+            free(raw_req);
+            break;
+        }
 
         ParsedRequest* parsed_req = (ParsedRequest*) malloc(sizeof(ParsedRequest));
         parse_request(raw_req, parsed_req);
 
-        char* http_response = dispatch_request(parsed_req);
+        const char *status;
+        char* http_response = dispatch_request(parsed_req, &status);
+
+        printf("[thread %ld] %s %s -> %s\n",
+               (long)getpid(),
+               parsed_req->request_line.method,
+               parsed_req->request_line.uri,
+               status);
 
         send_response(*client_fd, http_response);
 
