@@ -105,7 +105,7 @@ void send_response(int client_fd, const char *res)
 
 void *thread_worker(void *ptr)
 {
-    int *client_fd = (int*) ptr;
+    int *client_fd = (int *)ptr;
 
     char *raw_req = (char *)malloc(BUF_SIZE * sizeof(char));
     if (raw_req == NULL)
@@ -140,7 +140,7 @@ void *thread_worker(void *ptr)
     char *http_response = dispatch_request(parsed_req, &status);
 
     printf("[thread %ld] %s %s -> %s\n",
-            (long)pthread_self(),
+           (long)pthread_self(),
            parsed_req->request_line.method,
            parsed_req->request_line.uri,
            status);
@@ -190,11 +190,13 @@ int main(int argc, char *argv[])
 
         if (mode == 's')
         {
-            thread_worker((void*) client_fd);
+            thread_worker((void *)client_fd);
             continue;
-        } else if (mode == 'm') {
+        }
+        else if (mode == 'm')
+        {
             pthread_t thread;
-            if (pthread_create(&thread, NULL, thread_worker, (void*) client_fd) != 0)
+            if (pthread_create(&thread, NULL, thread_worker, (void *)client_fd) != 0)
             {
                 perror("pthread_create");
                 close(*client_fd);
