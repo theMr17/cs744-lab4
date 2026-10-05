@@ -9,8 +9,21 @@
 #include "functionslist.h"
 #include <pthread.h>
 
-#define MAX_PENDING_REQ 1
+#define MAX_PENDING_REQ 100
 #define BUF_SIZE 1024
+
+char mode;
+int num_threads = 0;
+
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond_queue_empty = PTHREAD_COND_INITIALIZER;
+pthread_cond_t cond_queue_full = PTHREAD_COND_INITIALIZER;
+
+int req_queue[MAX_PENDING_REQ];
+
+int curr_pending_req = 0;
+int producer_idx = 0;
+int consumer_idx = 0;
 
 int init_server(int port)
 {
@@ -55,6 +68,25 @@ int accept_request(int server_fd, int *client_fd)
         perror("accept");
         return -1;
     }
+
+    if (mode == 't')
+    {
+        pthread_mutex_lock(&lock);
+
+        while (curr_pending_req == MAX_PENDING_REQ)
+        {
+            pthread_cond_wait(&cond_queue_empty, &lock);
+        }
+
+        req_queue[producer_idx] = *client_fd;
+        producer_idx = (producer_idx + 1) % MAX_PENDING_REQ;
+        curr_pending_req++;
+
+        pthread_cond_signal(&cond_queue_full);
+
+        pthread_mutex_unlock(&lock);
+    }
+
     return 0;
 }
 
@@ -103,17 +135,15 @@ void send_response(int client_fd, const char *res)
     }
 }
 
-void *thread_worker(void *ptr)
+void request_handler(int *client_fd)
 {
-    int *client_fd = (int *)ptr;
-
     char *raw_req = (char *)malloc(BUF_SIZE * sizeof(char));
     if (raw_req == NULL)
     {
         perror("malloc");
         close(*client_fd);
         free(client_fd);
-        return NULL;
+        return;
     }
 
     if (read_request(*client_fd, raw_req) < 0)
@@ -121,7 +151,7 @@ void *thread_worker(void *ptr)
         close(*client_fd);
         free(client_fd);
         free(raw_req);
-        return NULL;
+        return;
     }
 
     ParsedRequest *parsed_req = (ParsedRequest *)malloc(sizeof(ParsedRequest));
@@ -131,7 +161,7 @@ void *thread_worker(void *ptr)
         close(*client_fd);
         free(client_fd);
         free(raw_req);
-        return NULL;
+        return;
     }
 
     parse_request(raw_req, parsed_req);
@@ -152,17 +182,58 @@ void *thread_worker(void *ptr)
     free(client_fd);
     free(parsed_req);
     free(raw_req);
-    return NULL;
+}
+
+void *thread_worker(void *ptr)
+{
+    if (mode == 'm')
+    {
+        int *client_fd = (int *)ptr;
+        request_handler(client_fd);
+        return NULL;
+    }
+    else if (mode == 't')
+    {
+        while (true)
+        {
+            pthread_mutex_lock(&lock);
+
+            while (curr_pending_req == 0)
+            {
+                pthread_cond_wait(&cond_queue_full, &lock);
+            }
+
+            int client_fd = req_queue[consumer_idx];
+
+            consumer_idx = (consumer_idx + 1) % MAX_PENDING_REQ;
+            curr_pending_req--;
+
+            pthread_cond_signal(&cond_queue_empty);
+
+            pthread_mutex_unlock(&lock);
+
+            int *client_fd_ptr = malloc(sizeof(int));
+            if (client_fd_ptr == NULL)
+            {
+                perror("malloc");
+                close(client_fd);
+                continue;
+            }
+
+            *client_fd_ptr = client_fd;
+            request_handler(client_fd_ptr);
+        }
+    }
 }
 
 int main(int argc, char *argv[])
 {
-    if (argc < 3)
+    if (argc < 3 || (argv[1][0] == 't' && argc < 4))
     {
-        printf("Usage: ./cflask <mode> <port>\n");
+        printf("Usage: ./cflask <mode> <port> <num_threads>\n");
         return 1;
     }
-    char mode = *argv[1];
+    mode = *argv[1];
     int port = atoi(argv[2]);
 
     int server_fd = init_server(port);
@@ -171,7 +242,44 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("cflask [%s] on http://localhost:%d\n", mode == 's' ? "single-threaded" : "thread-per-request", port);
+    char *mode_str;
+    if (mode == 's')
+    {
+        mode_str = "single-threaded";
+    }
+    else if (mode == 'm')
+    {
+        mode_str = "thread-per-request";
+    }
+    else if (mode == 't')
+    {
+        num_threads = atoi(argv[3]);
+        if (num_threads <= 0)
+        {
+            fprintf(stderr, "num_threads must be greater than zero\n");
+            close(server_fd);
+            return 1;
+        }
+        asprintf(&mode_str, "thread pool, %d threads", num_threads);
+    }
+
+    // create the threads only once, so this can't be in the while loop below
+    if (mode == 't')
+    {
+        pthread_t threads[num_threads];
+        for (int i = 0; i < num_threads; i++)
+        {
+            if (pthread_create(&threads[i], NULL, thread_worker, NULL) != 0)
+            {
+                perror("pthread_create");
+                close(server_fd);
+                return 1;
+            }
+            pthread_detach(threads[i]);
+        }
+    }
+
+    printf("cflask [%s] on http://localhost:%d\n", mode_str, port);
 
     while (true)
     {
@@ -190,13 +298,13 @@ int main(int argc, char *argv[])
 
         if (mode == 's')
         {
-            thread_worker((void *)client_fd);
+            request_handler(client_fd);
             continue;
         }
         else if (mode == 'm')
         {
             pthread_t thread;
-            if (pthread_create(&thread, NULL, thread_worker, (void *)client_fd) != 0)
+            if (pthread_create(&thread, NULL, thread_worker, client_fd) != 0)
             {
                 perror("pthread_create");
                 close(*client_fd);
@@ -204,6 +312,11 @@ int main(int argc, char *argv[])
                 continue;
             }
             pthread_detach(thread);
+        }
+        else if (mode == 't')
+        {
+            free(client_fd);
+            continue;
         }
     }
 
