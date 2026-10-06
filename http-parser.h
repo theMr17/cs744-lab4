@@ -1,10 +1,22 @@
+#ifndef HTTP_PARSER_H
+#define HTTP_PARSER_H
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
+#define MAX_QUERY_PARAMS 16
+
+typedef struct {
+    char key[64];
+    char value[256];
+} QueryParam;
+
 typedef struct {
     char method[16];
     char uri[256];
+    QueryParam query_params[MAX_QUERY_PARAMS];
+    int query_param_count;
     char version[16];
 } HttpRequestLine;
 
@@ -34,4 +46,6 @@ void parse_http_request(char *raw_request, ParsedRequest *req);
  */
 
 char* create_http_response(const char *status_code, const char *content_type, const char *data, size_t data_len, size_t *out_resp_len);
+
+#endif
 

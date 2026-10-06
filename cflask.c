@@ -116,7 +116,7 @@ char *dispatch_request(ParsedRequest *parsed_req, const char **status)
         if (strcmp(path, routes[i].path) == 0)
         {
             *status = "200 OK";
-            return routes[i].handler();
+            return routes[i].handler(parsed_req);
         }
     }
 

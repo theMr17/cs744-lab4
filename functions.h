@@ -1,4 +1,6 @@
-typedef char* (*FunctionHandler)(void);
+#include "http-parser.h"
+
+typedef char *(*FunctionHandler)(const ParsedRequest *request);
 
 typedef struct {
     const char *path;

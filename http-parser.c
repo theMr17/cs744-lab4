@@ -6,6 +6,7 @@
 void parse_http_request(char *raw_request, ParsedRequest *req) {
     req->header_count = 0;
     req->body = NULL;
+    req->request_line.query_param_count = 0;
 
     // 1. Separate the headers section from the body
     // The body always starts after a double CRLF (\r\n\r\n)
@@ -27,6 +28,35 @@ void parse_http_request(char *raw_request, ParsedRequest *req) {
            req->request_line.method, 
            req->request_line.uri, 
            req->request_line.version);
+
+    char *query_start = strchr(req->request_line.uri, '?');
+    if (query_start != NULL) {
+        *query_start = '\0';
+
+        char *param_saveptr;
+        char *param = strtok_r(query_start + 1, "&", &param_saveptr);
+        while (param != NULL &&
+               req->request_line.query_param_count < MAX_QUERY_PARAMS) {
+            QueryParam *query_param =
+                &req->request_line.query_params[req->request_line.query_param_count];
+            char *equals = strchr(param, '=');
+
+            if (equals != NULL) {
+                *equals = '\0';
+                strncpy(query_param->value, equals + 1,
+                        sizeof(query_param->value) - 1);
+            } else {
+                query_param->value[0] = '\0';
+            }
+            query_param->value[sizeof(query_param->value) - 1] = '\0';
+
+            strncpy(query_param->key, param, sizeof(query_param->key) - 1);
+            query_param->key[sizeof(query_param->key) - 1] = '\0';
+
+            req->request_line.query_param_count++;
+            param = strtok_r(NULL, "&", &param_saveptr);
+        }
+    }
 
     // 4. Parse subsequent Header lines
     line = strtok_r(NULL, "\r\n", &line_saveptr);
