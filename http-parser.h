@@ -1,5 +1,4 @@
-#ifndef HTTP_PARSER_H
-#define HTTP_PARSER_H
+#pragma once
 
 #include <stdio.h>
 #include <string.h>
@@ -46,6 +45,4 @@ void parse_http_request(char *raw_request, ParsedRequest *req);
  */
 
 char* create_http_response(const char *status_code, const char *content_type, const char *data, size_t data_len, size_t *out_resp_len);
-
-#endif
 
