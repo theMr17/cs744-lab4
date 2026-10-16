@@ -40,6 +40,9 @@ int init_server(int port)
     addr->sin_family = AF_INET;
     addr->sin_port = htons(port);
 
+    int opt = 1;
+    setsockopt(server_socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
     int bind_status = bind(server_socket_fd, (struct sockaddr *)addr, sizeof(*addr));
     if (bind_status < 0)
     {

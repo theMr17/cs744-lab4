@@ -1,0 +1,161 @@
+{
+  "test_id": 1,
+  "name": "Prime Number Check (CPU-bound)",
+  "endpoint": "/arithmetic/prime?num=1000000007",
+  "description": "Tests a compute-heavy task calculating primality of 1000000007 using trial division.",
+  "aim": "How does throughput and mean response time change with load for a CPU-bound request under single-threaded, thread-per-request, and varying thread pool sizes?",
+  "hypothesis": "For CPU-heavy work, throughput is constrained by CPU cores. Single-threaded will peak around 1 core capacity (~6k req/s). Thread pool of 1 will match single-threaded. Thread pool of 2 will double throughput (~12k req/s) by saturating both cores (CPUs 0,1). Larger thread pools (4, 8) will not increase throughput further as only 2 CPU cores are available. Thread-per-request will suffer from repeated thread creation/destruction overhead and perform similarly to or worse than single-threaded.",
+  "duration": 10,
+  "server_cpus": "0,1",
+  "client_cpus": "2,3,4,5",
+  "concurrencies": [
+    1,
+    2,
+    4,
+    8,
+    16,
+    32,
+    64,
+    128
+  ],
+  "configs": {
+    "s": {
+      "name": "single-threaded",
+      "throughputs": [
+        5210.1,
+        5991.17,
+        6376.41,
+        6140.88,
+        5732.4,
+        5851.96,
+        5709.16,
+        4528.16
+      ],
+      "latencies": [
+        0.16911,
+        0.30705,
+        0.60429,
+        1.28,
+        2.76,
+        5.43,
+        11.17,
+        71.12
+      ]
+    },
+    "m": {
+      "name": "thread per request",
+      "throughputs": [
+        4953.95,
+        9309.48,
+        8374.59,
+        7861.7,
+        6725.24,
+        6513.59,
+        6319.75,
+        6493.33
+      ],
+      "latencies": [
+        0.17925,
+        0.19125,
+        0.46685000000000004,
+        1.0,
+        2.34,
+        4.88,
+        10.12,
+        15.76
+      ]
+    },
+    "t1": {
+      "name": "thread pool = 1",
+      "throughputs": [
+        4139.65,
+        5143.25,
+        5414.67,
+        5072.92,
+        5023.87,
+        4672.54,
+        4415.88,
+        5330.77
+      ],
+      "latencies": [
+        0.25096,
+        0.39441000000000004,
+        0.7191000000000001,
+        1.55,
+        3.14,
+        6.79,
+        14.42,
+        23.92
+      ]
+    },
+    "t2": {
+      "name": "thread pool = 2",
+      "throughputs": [
+        4463.56,
+        7277.69,
+        9802.1,
+        9486.41,
+        9054.24,
+        9487.26,
+        9482.2,
+        9390.84
+      ],
+      "latencies": [
+        0.21074,
+        0.28699,
+        0.3915,
+        0.834,
+        1.73,
+        3.32,
+        6.69,
+        13.54
+      ]
+    },
+    "t4": {
+      "name": "thread pool = 4",
+      "throughputs": [
+        4072.56,
+        6648.63,
+        8993.68,
+        8774.68,
+        9936.62,
+        10649.02,
+        10239.0,
+        10152.69
+      ],
+      "latencies": [
+        0.27642,
+        0.31039,
+        0.4347,
+        1.03,
+        1.67,
+        2.97,
+        6.18,
+        12.23
+      ]
+    },
+    "t8": {
+      "name": "thread pool = 8",
+      "throughputs": [
+        4608.14,
+        7581.65,
+        9035.83,
+        10263.75,
+        10325.56,
+        10300.62,
+        9478.08,
+        9932.55
+      ],
+      "latencies": [
+        0.1953,
+        0.25629,
+        0.43757,
+        1.26,
+        2.5,
+        3.5,
+        6.88,
+        11.24
+      ]
+    }
+  }
+}

@@ -1,0 +1,301 @@
+================================================================================
+CS744 Lab 4 - Load Test 1: Prime Number Check (CPU-bound)
+================================================================================
+
+1. AIM:
+   How does throughput and mean response time change with load for a CPU-bound request under single-threaded, thread-per-request, and varying thread pool sizes?
+
+2. SETUP & EXECUTION:
+   Machine: Intel(R) Core(TM) i5-11400H @ 2.70GHz (6 physical cores, 12 hyperthreads)
+   Server core assignment: taskset -c 0,1 (Physical Cores 0 and 1)
+   Load generator (wrk) assignment: taskset -c 2,3,4,5 (Physical Cores 2, 3, 4, 5)
+   Measurement duration: 10s per point
+   Varying parameter: Concurrency -c over [1, 2, 4, 8, 16, 32, 64, 128]
+   Client threads: -t = min(c, 4)
+   Metrics: Throughput (requests/sec) and Mean Response Time (ms)
+
+3. HYPOTHESIS:
+   For CPU-heavy work, throughput is constrained by CPU cores. Single-threaded will peak around 1 core capacity (~6k req/s). Thread pool of 1 will match single-threaded. Thread pool of 2 will double throughput (~12k req/s) by saturating both cores (CPUs 0,1). Larger thread pools (4, 8) will not increase throughput further as only 2 CPU cores are available. Thread-per-request will suffer from repeated thread creation/destruction overhead and perform similarly to or worse than single-threaded.
+
+4. TABULATED RESULTS:
+
+Throughput (requests/sec):
+Concurrency  |          s |          m |         t1 |         t2 |         t4 |         t8
+-------------------------------------------------------------------------------------
+1            |    5210.10 |    4953.95 |    4139.65 |    4463.56 |    4072.56 |    4608.14
+2            |    5991.17 |    9309.48 |    5143.25 |    7277.69 |    6648.63 |    7581.65
+4            |    6376.41 |    8374.59 |    5414.67 |    9802.10 |    8993.68 |    9035.83
+8            |    6140.88 |    7861.70 |    5072.92 |    9486.41 |    8774.68 |   10263.75
+16           |    5732.40 |    6725.24 |    5023.87 |    9054.24 |    9936.62 |   10325.56
+32           |    5851.96 |    6513.59 |    4672.54 |    9487.26 |   10649.02 |   10300.62
+64           |    5709.16 |    6319.75 |    4415.88 |    9482.20 |   10239.00 |    9478.08
+128          |    4528.16 |    6493.33 |    5330.77 |    9390.84 |   10152.69 |    9932.55
+
+Mean Latency (ms):
+Concurrency  |          s |          m |         t1 |         t2 |         t4 |         t8
+-------------------------------------------------------------------------------------
+1            |      0.169 |      0.179 |      0.251 |      0.211 |      0.276 |      0.195
+2            |      0.307 |      0.191 |      0.394 |      0.287 |      0.310 |      0.256
+4            |      0.604 |      0.467 |      0.719 |      0.392 |      0.435 |      0.438
+8            |      1.280 |      1.000 |      1.550 |      0.834 |      1.030 |      1.260
+16           |      2.760 |      2.340 |      3.140 |      1.730 |      1.670 |      2.500
+32           |      5.430 |      4.880 |      6.790 |      3.320 |      2.970 |      3.500
+64           |     11.170 |     10.120 |     14.420 |      6.690 |      6.180 |      6.880
+128          |     71.120 |     15.760 |     23.920 |     13.540 |     12.230 |     11.240
+
+5. EXACT COMMANDS LOG:
+Config: single-threaded (c=1):
+  Server: taskset -c 0,1 ./cflask s 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t1 -c1 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 5210.10 req/s, 0.169 ms
+
+Config: single-threaded (c=2):
+  Server: taskset -c 0,1 ./cflask s 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t2 -c2 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 5991.17 req/s, 0.307 ms
+
+Config: single-threaded (c=4):
+  Server: taskset -c 0,1 ./cflask s 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c4 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 6376.41 req/s, 0.604 ms
+
+Config: single-threaded (c=8):
+  Server: taskset -c 0,1 ./cflask s 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c8 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 6140.88 req/s, 1.280 ms
+
+Config: single-threaded (c=16):
+  Server: taskset -c 0,1 ./cflask s 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c16 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 5732.40 req/s, 2.760 ms
+
+Config: single-threaded (c=32):
+  Server: taskset -c 0,1 ./cflask s 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c32 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 5851.96 req/s, 5.430 ms
+
+Config: single-threaded (c=64):
+  Server: taskset -c 0,1 ./cflask s 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c64 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 5709.16 req/s, 11.170 ms
+
+Config: single-threaded (c=128):
+  Server: taskset -c 0,1 ./cflask s 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c128 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 4528.16 req/s, 71.120 ms
+
+Config: thread per request (c=1):
+  Server: taskset -c 0,1 ./cflask m 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t1 -c1 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 4953.95 req/s, 0.179 ms
+
+Config: thread per request (c=2):
+  Server: taskset -c 0,1 ./cflask m 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t2 -c2 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 9309.48 req/s, 0.191 ms
+
+Config: thread per request (c=4):
+  Server: taskset -c 0,1 ./cflask m 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c4 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 8374.59 req/s, 0.467 ms
+
+Config: thread per request (c=8):
+  Server: taskset -c 0,1 ./cflask m 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c8 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 7861.70 req/s, 1.000 ms
+
+Config: thread per request (c=16):
+  Server: taskset -c 0,1 ./cflask m 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c16 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 6725.24 req/s, 2.340 ms
+
+Config: thread per request (c=32):
+  Server: taskset -c 0,1 ./cflask m 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c32 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 6513.59 req/s, 4.880 ms
+
+Config: thread per request (c=64):
+  Server: taskset -c 0,1 ./cflask m 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c64 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 6319.75 req/s, 10.120 ms
+
+Config: thread per request (c=128):
+  Server: taskset -c 0,1 ./cflask m 8080
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c128 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 6493.33 req/s, 15.760 ms
+
+Config: thread pool = 1 (c=1):
+  Server: taskset -c 0,1 ./cflask t 8080 1
+  Wrk:    taskset -c 2,3,4,5 wrk -t1 -c1 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 4139.65 req/s, 0.251 ms
+
+Config: thread pool = 1 (c=2):
+  Server: taskset -c 0,1 ./cflask t 8080 1
+  Wrk:    taskset -c 2,3,4,5 wrk -t2 -c2 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 5143.25 req/s, 0.394 ms
+
+Config: thread pool = 1 (c=4):
+  Server: taskset -c 0,1 ./cflask t 8080 1
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c4 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 5414.67 req/s, 0.719 ms
+
+Config: thread pool = 1 (c=8):
+  Server: taskset -c 0,1 ./cflask t 8080 1
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c8 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 5072.92 req/s, 1.550 ms
+
+Config: thread pool = 1 (c=16):
+  Server: taskset -c 0,1 ./cflask t 8080 1
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c16 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 5023.87 req/s, 3.140 ms
+
+Config: thread pool = 1 (c=32):
+  Server: taskset -c 0,1 ./cflask t 8080 1
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c32 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 4672.54 req/s, 6.790 ms
+
+Config: thread pool = 1 (c=64):
+  Server: taskset -c 0,1 ./cflask t 8080 1
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c64 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 4415.88 req/s, 14.420 ms
+
+Config: thread pool = 1 (c=128):
+  Server: taskset -c 0,1 ./cflask t 8080 1
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c128 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 5330.77 req/s, 23.920 ms
+
+Config: thread pool = 2 (c=1):
+  Server: taskset -c 0,1 ./cflask t 8080 2
+  Wrk:    taskset -c 2,3,4,5 wrk -t1 -c1 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 4463.56 req/s, 0.211 ms
+
+Config: thread pool = 2 (c=2):
+  Server: taskset -c 0,1 ./cflask t 8080 2
+  Wrk:    taskset -c 2,3,4,5 wrk -t2 -c2 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 7277.69 req/s, 0.287 ms
+
+Config: thread pool = 2 (c=4):
+  Server: taskset -c 0,1 ./cflask t 8080 2
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c4 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 9802.10 req/s, 0.392 ms
+
+Config: thread pool = 2 (c=8):
+  Server: taskset -c 0,1 ./cflask t 8080 2
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c8 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 9486.41 req/s, 0.834 ms
+
+Config: thread pool = 2 (c=16):
+  Server: taskset -c 0,1 ./cflask t 8080 2
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c16 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 9054.24 req/s, 1.730 ms
+
+Config: thread pool = 2 (c=32):
+  Server: taskset -c 0,1 ./cflask t 8080 2
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c32 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 9487.26 req/s, 3.320 ms
+
+Config: thread pool = 2 (c=64):
+  Server: taskset -c 0,1 ./cflask t 8080 2
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c64 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 9482.20 req/s, 6.690 ms
+
+Config: thread pool = 2 (c=128):
+  Server: taskset -c 0,1 ./cflask t 8080 2
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c128 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 9390.84 req/s, 13.540 ms
+
+Config: thread pool = 4 (c=1):
+  Server: taskset -c 0,1 ./cflask t 8080 4
+  Wrk:    taskset -c 2,3,4,5 wrk -t1 -c1 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 4072.56 req/s, 0.276 ms
+
+Config: thread pool = 4 (c=2):
+  Server: taskset -c 0,1 ./cflask t 8080 4
+  Wrk:    taskset -c 2,3,4,5 wrk -t2 -c2 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 6648.63 req/s, 0.310 ms
+
+Config: thread pool = 4 (c=4):
+  Server: taskset -c 0,1 ./cflask t 8080 4
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c4 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 8993.68 req/s, 0.435 ms
+
+Config: thread pool = 4 (c=8):
+  Server: taskset -c 0,1 ./cflask t 8080 4
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c8 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 8774.68 req/s, 1.030 ms
+
+Config: thread pool = 4 (c=16):
+  Server: taskset -c 0,1 ./cflask t 8080 4
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c16 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 9936.62 req/s, 1.670 ms
+
+Config: thread pool = 4 (c=32):
+  Server: taskset -c 0,1 ./cflask t 8080 4
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c32 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 10649.02 req/s, 2.970 ms
+
+Config: thread pool = 4 (c=64):
+  Server: taskset -c 0,1 ./cflask t 8080 4
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c64 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 10239.00 req/s, 6.180 ms
+
+Config: thread pool = 4 (c=128):
+  Server: taskset -c 0,1 ./cflask t 8080 4
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c128 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 10152.69 req/s, 12.230 ms
+
+Config: thread pool = 8 (c=1):
+  Server: taskset -c 0,1 ./cflask t 8080 8
+  Wrk:    taskset -c 2,3,4,5 wrk -t1 -c1 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 4608.14 req/s, 0.195 ms
+
+Config: thread pool = 8 (c=2):
+  Server: taskset -c 0,1 ./cflask t 8080 8
+  Wrk:    taskset -c 2,3,4,5 wrk -t2 -c2 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 7581.65 req/s, 0.256 ms
+
+Config: thread pool = 8 (c=4):
+  Server: taskset -c 0,1 ./cflask t 8080 8
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c4 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 9035.83 req/s, 0.438 ms
+
+Config: thread pool = 8 (c=8):
+  Server: taskset -c 0,1 ./cflask t 8080 8
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c8 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 10263.75 req/s, 1.260 ms
+
+Config: thread pool = 8 (c=16):
+  Server: taskset -c 0,1 ./cflask t 8080 8
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c16 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 10325.56 req/s, 2.500 ms
+
+Config: thread pool = 8 (c=32):
+  Server: taskset -c 0,1 ./cflask t 8080 8
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c32 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 10300.62 req/s, 3.500 ms
+
+Config: thread pool = 8 (c=64):
+  Server: taskset -c 0,1 ./cflask t 8080 8
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c64 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 9478.08 req/s, 6.880 ms
+
+Config: thread pool = 8 (c=128):
+  Server: taskset -c 0,1 ./cflask t 8080 8
+  Wrk:    taskset -c 2,3,4,5 wrk -t4 -c128 -d10s -H Connection: close http://127.0.0.1:8080/arithmetic/prime?num=1000000007
+  Result: 9932.55 req/s, 11.240 ms
+
+
+
+6. OBSERVATIONS:
+- Single-threaded (s): Throughput rises from 5,210.10 req/s at c=1, reaching a maximum of 6,376.41 req/s at c=4, and then flattens around 5,700-5,850 req/s before dropping to 4,528.16 req/s at c=128.
+- Thread-per-request (m): Throughput peaks at c=2 at 9,309.48 req/s, but steadily degrades as concurrency increases (down to 6,319.75 req/s at c=64 and 6,493.33 req/s at c=128).
+- Thread Pool 1 (t1): Throughput flattens at ~5,000-5,400 req/s, performing almost identically to single-threaded mode.
+- Thread Pool 2 (t2): Throughput scales up to 9,802.10 req/s at c=4 and sustains ~9,400-9,500 req/s across c=8 to c=128 (roughly 1.6x-1.7x single-threaded throughput).
+- Thread Pool 4 (t4) & 8 (t8): Reach peak throughputs of 10,649.02 req/s and 10,325.56 req/s respectively. Both perform very similarly to thread pool 2.
+- Response Time: For all configurations, once throughput flattens, mean response time grows roughly linearly with concurrency (e.g. for t2, latency goes from 0.834 ms at c=8, to 1.730 ms at c=16, 3.320 ms at c=32, 6.690 ms at c=64, and 13.540 ms at c=128 - doubling as concurrency doubles).
+
+7. EXPLANATION & INFERENCES:
+- CPU Core Saturation: The server is pinned to 2 CPU cores (CPUs 0, 1). A single-threaded worker can utilize at most one core. With thread pool sizes >= 2, both cores are saturated with CPU-bound prime calculations, nearly doubling throughput from ~5.8k to ~10k req/s.
+- Law of Diminishing Returns: Increasing thread pool size to 4 or 8 does not yield further throughput gains because there are only 2 physical cores available. Additional threads simply contend for CPU time and introduce context switching overhead.
+- Thread-Per-Request Inefficiency: While thread-per-request achieves high concurrency, creating and destroying a pthread (allocating/freeing stacks, kernel scheduling) on every connection incurs significant penalty compared to pre-spawned worker threads in a thread pool.
+- Little's Law Conformance: R ≈ N / X. With throughput X held constant by CPU saturation, average response time R increases directly proportional to concurrency N.

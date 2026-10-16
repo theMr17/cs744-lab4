@@ -1,0 +1,161 @@
+{
+  "test_id": 2,
+  "name": "Pingpong Echo (I/O-bound)",
+  "endpoint": "/pingpong?str=cs744",
+  "description": "Tests a lightweight string echo endpoint with minimal computation to evaluate network I/O and connection handling efficiency.",
+  "aim": "How does throughput and response time scale for an I/O-bound lightweight request across server architectures under increasing concurrency?",
+  "hypothesis": "With minimal CPU compute per request, throughput will reach high rates (60k-90k req/s). Thread pools of 2, 4, 8 will handle concurrent socket handoffs effectively. In thread-per-request mode, the kernel thread creation/destruction overhead per connection will become a dominant bottleneck compared to the trivial request execution time.",
+  "duration": 10,
+  "server_cpus": "0,1",
+  "client_cpus": "2,3,4,5",
+  "concurrencies": [
+    1,
+    2,
+    4,
+    8,
+    16,
+    32,
+    64,
+    128
+  ],
+  "configs": {
+    "s": {
+      "name": "single-threaded",
+      "throughputs": [
+        19595.16,
+        30530.85,
+        47909.71,
+        57044.16,
+        58332.06,
+        60581.61,
+        61470.77,
+        60463.63
+      ],
+      "latencies": [
+        0.049729999999999996,
+        0.09076999999999999,
+        0.10654999999999999,
+        0.1402,
+        0.26412,
+        0.48746,
+        0.97,
+        2.6
+      ]
+    },
+    "m": {
+      "name": "thread per request",
+      "throughputs": [
+        15269.94,
+        27524.59,
+        30877.67,
+        27671.48,
+        25335.85,
+        25648.17,
+        23658.91,
+        24799.5
+      ],
+      "latencies": [
+        0.0594,
+        0.06741,
+        0.12953,
+        0.28789,
+        0.61464,
+        1.21,
+        2.67,
+        4.73
+      ]
+    },
+    "t1": {
+      "name": "thread pool = 1",
+      "throughputs": [
+        19601.61,
+        34794.02,
+        57873.84,
+        68205.14,
+        76200.34,
+        50721.96,
+        62778.66,
+        60484.61
+      ],
+      "latencies": [
+        0.06928,
+        0.08671,
+        0.09979,
+        0.1006,
+        0.16761,
+        0.6398400000000001,
+        0.94,
+        1.64
+      ]
+    },
+    "t2": {
+      "name": "thread pool = 2",
+      "throughputs": [
+        21101.62,
+        34810.84,
+        54006.65,
+        63373.64,
+        63183.77,
+        62643.92,
+        65495.57,
+        67913.24
+      ],
+      "latencies": [
+        0.03762,
+        0.073,
+        0.09998,
+        0.12591,
+        0.25826,
+        0.48851,
+        0.79687,
+        1.26
+      ]
+    },
+    "t4": {
+      "name": "thread pool = 4",
+      "throughputs": [
+        19052.55,
+        35779.94,
+        51694.83,
+        67641.94,
+        65594.85,
+        68198.69,
+        74776.93,
+        73896.69
+      ],
+      "latencies": [
+        0.09362999999999999,
+        0.04804,
+        0.08874,
+        0.07723000000000001,
+        0.19998,
+        0.33544,
+        0.48419,
+        0.9
+      ]
+    },
+    "t8": {
+      "name": "thread pool = 8",
+      "throughputs": [
+        19601.78,
+        33518.56,
+        55025.83,
+        61640.02,
+        66433.2,
+        73686.97,
+        82578.47,
+        77972.34
+      ],
+      "latencies": [
+        0.05771,
+        0.08439,
+        0.06135,
+        0.10445,
+        0.18653,
+        0.22297999999999998,
+        0.34916,
+        0.89
+      ]
+    }
+  }
+}
